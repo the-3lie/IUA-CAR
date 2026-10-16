@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Signalétique routière : bleu nuit, jaune signal, fond bitume clair */
+  --color-fond: #eef1f4;
+  --color-surface: #ffffff;
+  --color-encre: #0b1d33;
+  --color-encre-2: #3d4f66;
+  --color-trait: #c9d2dc;
+  --color-car: #ffc20e;
+  --color-car-fonce: #b98900;
+
+  --color-ok: #0d7a3a;
+  --color-ok-clair: #d9f0e1;
+  --color-alerte: #ffb020;
+  --color-alerte-texte: #7a4300;
+  --color-alerte-clair: #fff0cf;
+  --color-danger: #c4262e;
+  --color-danger-clair: #fbe1e1;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--color-fond);
+  color: var(--color-encre);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+button, [role="button"], a { touch-action: manipulation; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+:focus-visible { outline: 3px solid var(--color-encre); outline-offset: 2px; border-radius: 6px; }
+.nombres { font-variant-numeric: tabular-nums; }
+
+/* Bande de livrée de car : damier jaune / bleu nuit */
+.livree {
+  background-image: repeating-linear-gradient(135deg, var(--color-car) 0 14px, var(--color-encre) 14px 28px);
+}
+
+/* Entrée unique, courte : le résultat d'un scan apparaît */
+@keyframes apparition { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+.apparition { animation: apparition .16s ease-out; }
+@media (prefers-reduced-motion: reduce) { .apparition { animation: none; } }
+
+/* Zone de lecture du scanner */
+#lecteur video { width: 100% !important; height: 100% !important; object-fit: cover; }
+#lecteur { background: #000; }
