@@ -84,7 +84,8 @@ Un second scan du même étudiant (même type) dans la minute est enregistré av
 
 ## Scan rapide (petits QR codes)
 
-- Le QR contient `CC1:` + un jeton aléatoire de 128 bits en **majuscules** : le QR est très compact (≈ 25×25 modules), donc lisible même petit. Le serveur (ou la liste locale hors-ligne) retrouve le matricule derrière le jeton ; les anciens QR restent valides.
+- **Le QR contient le matricule** (réglage par défaut, modifiable dans *Paramètres › Contenu du QR code*). Au scan, l'application **lit le matricule et le compare à la base** : s'il existe, le statut de paiement s'affiche (vert / orange / rouge) ; s'il est **absent de la base**, le résultat est rouge « Non inscrit », avec le matricule lu, et le passage est enregistré (visible dans *Rapports › Non-inscrits*). Un matricule seul donne un QR minuscule et très rapide à lire.
+- Option **Jeton sécurisé** (`CC1:` + 128 bits aléatoires) : le QR n'est plus devinable. Avec le matricule en clair, quelqu'un qui connaît celui d'un camarade peut fabriquer son QR ; le jeton évite cela. Le scanner accepte toujours les deux formats, et « Régénérer le QR » n'a d'effet que sur le jeton.
 - Le lecteur analyse **toute l'image** en haute résolution, avec le détecteur natif du téléphone (`BarcodeDetector`) ou `jsQR` en repli, mise au point continue, bouton **Lampe** et **zoom 1×/2×/3×** si la caméra les propose.
 - Le scan est **continu** : le résultat s'affiche **2 secondes** puis disparaît tout seul (toucher l'écran le ferme avant). Il ne bloque jamais le scan suivant : un autre QR scanné pendant l'affichage remplace aussitôt le résultat. Un même QR revu dans les 3 secondes est ignoré (pas de double lecture accidentelle).
 - La décision (vert / orange / rouge) est calculée **instantanément sur le téléphone** avec la liste téléchargée, puis envoyée au serveur en arrière-plan (qui recalcule et enregistre). La liste est rafraîchie toutes les 5 minutes en ligne.
@@ -101,7 +102,7 @@ Un second scan du même étudiant (même type) dans la minute est enregistré av
 
 - Mots de passe hachés **bcrypt** ; sessions **JWT** en cookie `httpOnly`, `SameSite=Lax`, `Secure` en production. Durées : étudiant 30 j, contrôleur 24 h, admin 12 h.
 - **Chaque route API** vérifie la session, le rôle et que le compte est toujours actif ; un étudiant ne lit que ses propres données (`session.uid`, jamais un identifiant fourni par le client). Le middleware protège aussi les pages. Contrôle d'origine sur les écritures.
-- QR = jeton aléatoire de 128 bits (`CC1:…`), **jamais le matricule en clair**, régénérable par l'admin (l'ancien QR est aussitôt invalide).
+- QR : au choix de l'admin, le matricule (par défaut, petit et rapide) ou un jeton aléatoire de 128 bits (`CC1:…`, impossible à deviner, régénérable ; l'ancien QR est aussitôt invalide).
 - **Limitation des tentatives** (connexion, activation, changement de mot de passe) stockée en base : 5 échecs → blocage 15 min, plus un plafond par adresse IP.
 - Toutes les entrées sont validées (zod) ; requêtes SQL toujours paramétrées ; journal d'audit des actions sensibles (import, changement de car, réinitialisations, QR, désactivations, annulations, paramètres).
 - À savoir : la bibliothèque `xlsx` (SheetJS, version npm 0.18.5) a des avis de sécurité connus sur des fichiers malveillants. Ici, la lecture des fichiers se fait **dans le navigateur de l'administrateur** (seul rôle pouvant importer) et le serveur ne fait qu'écrire des exports.

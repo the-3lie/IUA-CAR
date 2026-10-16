@@ -2,7 +2,7 @@ import { ApiError } from './errors';
 import { query, sql } from './db';
 import { getRegle } from './regle';
 import {
-  evaluer, jetonDepuisQr, statutPaiement,
+  evaluer, lireQr, statutPaiement,
   type Resultat, type Statut, type TypePassage,
 } from './shared';
 
@@ -30,6 +30,8 @@ export type ScanSortie = {
   doublon: boolean;
   horodatage: string;
   etudiant: EtudiantResume | null;
+  /** Matricule lu dans le QR quand il n'existe pas dans la base. */
+  matricule_lu?: string;
 };
 
 const MINUTE = 60_000;
@@ -63,18 +65,21 @@ export async function traiterLot(entrees: ScanEntree[], controleurId: number): P
   );
   const dejaMap = new Map(dejaVus.map((r) => [r.client_uid as string, r]));
 
-  const jetons = entrees.map((e) => (e.jeton ? jetonDepuisQr(e.jeton) : null)).filter(Boolean) as string[];
+  const lus = entrees.map((e) => (e.jeton ? lireQr(e.jeton) : null));
+  const jetons = lus.flatMap((q) => (q?.type === 'jeton' ? [q.jeton] : []));
+  const matricules = lus.flatMap((q) => (q?.type === 'matricule' ? [q.matricule] : []));
   const ids = [
     ...entrees.map((e) => e.etudiant_id).filter((x): x is number => !!x),
     ...dejaVus.map((r) => r.etudiant_id).filter((x: unknown): x is number => !!x),
   ];
   const etudiants = await query<any>(
     `SELECT id, matricule, nom, car_id, montant_du, total_paye, solde, actif, jeton_qr
-       FROM etudiants WHERE jeton_qr = ANY($1::text[]) OR id = ANY($2::int[])`,
-    [jetons, ids],
+       FROM etudiants WHERE jeton_qr = ANY($1::text[]) OR id = ANY($2::int[]) OR matricule = ANY($3::text[])`,
+    [jetons, ids, matricules],
   );
   const parJeton = new Map(etudiants.map((e) => [e.jeton_qr as string, e]));
   const parId = new Map(etudiants.map((e) => [e.id as number, e]));
+  const parMatricule = new Map(etudiants.map((e) => [e.matricule as string, e]));
 
   const resume = (e: any): EtudiantResume => ({
     id: e.id, nom: e.nom, matricule: e.matricule, car: e.car_id ? nomCar(e.car_id) : null,
@@ -83,7 +88,7 @@ export async function traiterLot(entrees: ScanEntree[], controleurId: number): P
 
   // Passages récents des étudiants concernés, pour repérer les doublons (même minute).
   const instants = entrees.map((e) => horodatageValide(e.horodatage));
-  const ciblesIds = [...new Set([...parJeton.values()].map((e) => e.id).concat(ids))];
+  const ciblesIds = [...new Set(etudiants.map((e) => e.id as number).concat(ids))];
   const recents = ciblesIds.length
     ? await query<any>(
         `SELECT etudiant_id, type, horodatage FROM passages
@@ -119,11 +124,26 @@ export async function traiterLot(entrees: ScanEntree[], controleurId: number): P
     let detail: string;
     let nomSaisi: string | null = null;
 
+    let matriculeLu: string | undefined;
+
     if (e.jeton) {
-      const j = jetonDepuisQr(e.jeton);
-      etudiant = j ? parJeton.get(j) : null;
-      if (!etudiant) { resultat = 'invalide'; detail = 'QR inconnu ou non valide'; }
-      else ({ resultat, detail } = evaluer(etudiant, e.car_id, regle, nomCar));
+      const q = lireQr(e.jeton);
+      if (!q) {
+        resultat = 'invalide'; detail = 'QR illisible : contenu non reconnu';
+      } else if (q.type === 'jeton') {
+        etudiant = parJeton.get(q.jeton);
+        if (!etudiant) { resultat = 'invalide'; detail = 'QR inconnu ou périmé (régénéré)'; }
+        else ({ resultat, detail } = evaluer(etudiant, e.car_id, regle, nomCar));
+      } else {
+        // Le QR contient un matricule : on le compare à la base.
+        etudiant = parMatricule.get(q.matricule);
+        if (!etudiant) {
+          matriculeLu = q.matricule;
+          nomSaisi = `Matricule ${q.matricule}`;
+          resultat = 'non_inscrit';
+          detail = `Matricule ${q.matricule} absent de la base`;
+        } else ({ resultat, detail } = evaluer(etudiant, e.car_id, regle, nomCar));
+      }
     } else if (e.etudiant_id) {
       etudiant = parId.get(e.etudiant_id);
       if (!etudiant) { resultat = 'invalide'; detail = 'Étudiant introuvable'; }
@@ -143,7 +163,7 @@ export async function traiterLot(entrees: ScanEntree[], controleurId: number): P
     const horodatage = new Date(t).toISOString();
     sorties[i] = {
       client_uid: e.client_uid, passage_id: null, deja_enregistre: false, resultat, detail, doublon, horodatage,
-      etudiant: etudiant ? resume(etudiant) : null,
+      etudiant: etudiant ? resume(etudiant) : null, matricule_lu: matriculeLu,
     };
     aInserer.push({
       i,

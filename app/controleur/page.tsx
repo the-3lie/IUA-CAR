@@ -8,11 +8,11 @@ import Recherche from '@/components/controleur/Recherche';
 import ResultatPlein, { type Affiche } from '@/components/controleur/ResultatPlein';
 import { api, deconnecter, ErreurApi } from '@/lib/client';
 import {
-  ajouterFile, enregistrerListe, etudiantParId, etudiantParJeton, listerFile, lireMeta, retirerDeFile,
+  ajouterFile, enregistrerListe, etudiantParId, etudiantParJeton, etudiantParMatricule, listerFile, lireMeta, retirerDeFile,
   type DonneesListe, type EntreeFile,
 } from '@/lib/offline';
 import {
-  evaluer, formatDateHeure, formatHeure, jetonDepuisQr, RESULTAT_LABEL, TYPE_LABEL,
+  evaluer, formatDateHeure, formatHeure, lireQr, RESULTAT_LABEL, TYPE_LABEL,
   type Regle, type Resultat, type TypePassage,
 } from '@/lib/shared';
 
@@ -171,12 +171,25 @@ export default function Controleur() {
     let etu: Awaited<ReturnType<typeof etudiantParId>>;
     let resultat: Resultat;
     let detail: string;
+    let matLu: string | undefined;
     if (base.nom_saisi) {
       resultat = 'non_inscrit'; detail = 'Personne absente de la liste';
+    } else if (base.jeton) {
+      const q = lireQr(base.jeton);
+      if (!q) { resultat = 'invalide'; detail = 'QR illisible : contenu non reconnu'; }
+      else if (q.type === 'jeton') {
+        etu = await etudiantParJeton(q.jeton);
+        if (!etu) { resultat = 'invalide'; detail = 'QR inconnu ou périmé'; }
+        else ({ resultat, detail } = evaluer(etu, base.car_id, liste.regle, nomCar));
+      } else {
+        // Matricule lu dans le QR, comparé à la liste des étudiants.
+        etu = await etudiantParMatricule(q.matricule);
+        if (!etu) { matLu = q.matricule; resultat = 'non_inscrit'; detail = `Matricule ${q.matricule} absent de la base`; }
+        else ({ resultat, detail } = evaluer(etu, base.car_id, liste.regle, nomCar));
+      }
     } else {
-      if (base.jeton) { const j = jetonDepuisQr(base.jeton); etu = j ? await etudiantParJeton(j) : undefined; }
-      else etu = await etudiantParId(base.etudiant_id!);
-      if (!etu) { resultat = 'invalide'; detail = 'QR inconnu ou étudiant non listé'; }
+      etu = await etudiantParId(base.etudiant_id!);
+      if (!etu) { resultat = 'invalide'; detail = 'Étudiant introuvable'; }
       else ({ resultat, detail } = evaluer(etu, base.car_id, liste.regle, nomCar));
     }
     let doublon = false;
@@ -186,12 +199,12 @@ export default function Controleur() {
       doublon = !!dernier && Date.now() - dernier < 60000;
       recents.current.set(cle, Date.now());
     }
-    const nom = etu?.nom ?? base.nom_saisi ?? 'QR non reconnu';
+    const nom = etu?.nom ?? (matLu ? `Matricule ${matLu}` : base.nom_saisi) ?? 'QR non reconnu';
     await ajouterFile({
-      ...base, horodatage: new Date().toISOString(), resultat, detail, doublon, nom, matricule: etu?.matricule,
+      ...base, horodatage: new Date().toISOString(), resultat, detail, doublon, nom, matricule: etu?.matricule ?? matLu,
     });
     montrer({
-      resultat, detail, doublon, nom, matricule: etu?.matricule, car: etu ? (etu.car_id ? nomCar(etu.car_id) : null) : undefined,
+      resultat, detail, doublon, nom: matLu ? 'Absent de la base' : nom, matricule: etu?.matricule ?? matLu, car: etu ? (etu.car_id ? nomCar(etu.car_id) : null) : undefined,
       solde: etu?.solde, horsLigne: !navigator.onLine,
     });
     rafraichirJour(false);
@@ -209,7 +222,7 @@ export default function Controleur() {
         if (s.etudiant) recents.current.set(`${s.etudiant.id}:${type}`, Date.now());
         montrer({
           resultat: s.resultat, detail: s.detail, doublon: s.doublon,
-          nom: s.etudiant?.nom ?? entree.nom_saisi ?? 'QR non reconnu', matricule: s.etudiant?.matricule,
+          nom: s.etudiant?.nom ?? (s.matricule_lu ? 'Absent de la base' : entree.nom_saisi) ?? 'QR non reconnu', matricule: s.etudiant?.matricule ?? s.matricule_lu,
           car: s.etudiant ? s.etudiant.car : undefined, solde: s.etudiant?.solde, horsLigne: false,
         });
         rafraichirJour();

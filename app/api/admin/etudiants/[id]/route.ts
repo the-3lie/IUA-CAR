@@ -2,13 +2,13 @@ import { z } from 'zod';
 import { ApiError } from '@/lib/errors';
 import { corps, entierId, route } from '@/lib/api';
 import { sql } from '@/lib/db';
-import { getRegle } from '@/lib/regle';
-import { PREFIXE_QR, normaliserCar, statutPaiement } from '@/lib/shared';
+import { getParametres } from '@/lib/regle';
+import { contenuQr, normaliserCar, statutPaiement } from '@/lib/shared';
 import { journaliser } from '@/lib/audit';
 
 export const GET = route(['admin'], async ({ params }) => {
   const id = entierId(params.id);
-  const regle = await getRegle();
+  const { regle, qr } = await getParametres();
   const rows = await sql<any>`SELECT e.*, c.nom AS car FROM etudiants e LEFT JOIN cars c ON c.id = e.car_id WHERE e.id = ${id}`;
   const e = rows[0];
   if (!e) throw new ApiError(404, 'Étudiant introuvable.');
@@ -21,7 +21,7 @@ export const GET = route(['admin'], async ({ params }) => {
     active: !!e.mot_de_passe_hash, date_activation: e.date_activation,
     code_activation: e.mot_de_passe_hash ? null : e.code_activation,
     montant_du: e.montant_du, total_paye: e.total_paye, solde: e.solde, modalites: e.modalites,
-    statut: statutPaiement(e, regle), qr: PREFIXE_QR + e.jeton_qr, passages,
+    statut: statutPaiement(e, regle), qr: contenuQr(e, qr), passages,
   };
 });
 

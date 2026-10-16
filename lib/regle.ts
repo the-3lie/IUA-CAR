@@ -1,7 +1,7 @@
 import { sql } from './db';
 import { REGLE_PAR_DEFAUT, type Regle } from './shared';
 
-export type Parametres = { regle: Regle; activation: 'nom' | 'code' };
+export type Parametres = { regle: Regle; activation: 'nom' | 'code'; qr: 'matricule' | 'jeton' };
 
 export async function getParametres(): Promise<Parametres> {
   const rows = await sql<{ cle: string; valeur: string }>`SELECT cle, valeur FROM parametres`;
@@ -11,7 +11,7 @@ export async function getParametres(): Promise<Parametres> {
     mode: m.regle_mode === 'montant' ? 'montant' : 'pourcentage',
     valeur: Number.isFinite(valeur) && m.regle_valeur !== undefined ? valeur : REGLE_PAR_DEFAUT.valeur,
   };
-  return { regle, activation: m.activation === 'code' ? 'code' : 'nom' };
+  return { regle, activation: m.activation === 'code' ? 'code' : 'nom', qr: m.qr_mode === 'jeton' ? 'jeton' : 'matricule' };
 }
 
 export async function getRegle(): Promise<Regle> {

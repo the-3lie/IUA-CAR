@@ -112,6 +112,31 @@ export function jetonDepuisQr(contenu: string): string | null {
   return /^[A-Za-z0-9_-]{20,64}$/.test(j) ? j : null;
 }
 
+export type QrLu = { type: 'jeton'; jeton: string } | { type: 'matricule'; matricule: string };
+
+/**
+ * Interprète le contenu brut d'un QR code :
+ * - « CC1:… » = jeton sécurisé ;
+ * - sinon, le texte est lu comme un MATRICULE (majuscules, sans espaces) à comparer à la base ;
+ * - null si le contenu ne ressemble à rien d'exploitable (URL, texte long, etc.).
+ */
+export function lireQr(contenu: string): QrLu | null {
+  const c = contenu.trim();
+  if (!c) return null;
+  const j = jetonDepuisQr(c);
+  if (j) return { type: 'jeton', jeton: j };
+  if (c.toUpperCase().startsWith(PREFIXE_QR)) return null;
+  const m = c.replace(/\s+/g, '').toUpperCase();
+  return /^[A-Z0-9][A-Z0-9._\/-]{1,39}$/.test(m) ? { type: 'matricule', matricule: m } : null;
+}
+
+export type ModeQr = 'matricule' | 'jeton';
+
+/** Ce qui est écrit dans le QR code de l'étudiant, selon le réglage de l'administrateur. */
+export function contenuQr(e: { matricule: string; jeton_qr: string }, mode: ModeQr): string {
+  return mode === 'matricule' ? e.matricule : PREFIXE_QR + e.jeton_qr;
+}
+
 export function formatHeure(iso: string): string {
   return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Abidjan' });
 }

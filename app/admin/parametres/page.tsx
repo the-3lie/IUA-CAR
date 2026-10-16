@@ -5,21 +5,22 @@ import { api, ErreurApi } from '@/lib/client';
 import { useApi } from '@/lib/useApi';
 import type { Regle } from '@/lib/shared';
 
-type Params = { regle: Regle; activation: 'nom' | 'code' };
+type Params = { regle: Regle; activation: 'nom' | 'code'; qr: 'matricule' | 'jeton' };
 
 export default function Parametres() {
   const { data, erreur, chargement } = useApi<Params>('/api/admin/parametres');
   const [mode, setMode] = useState<Regle['mode']>('pourcentage');
   const [valeur, setValeur] = useState('100');
   const [activation, setActivation] = useState<'nom' | 'code'>('nom');
+  const [qr, setQr] = useState<'matricule' | 'jeton'>('matricule');
   const [msg, setMsg] = useState<{ type: 'succes' | 'erreur'; texte: string } | null>(null);
   const [occupe, setOccupe] = useState(false);
-  useEffect(() => { if (data) { setMode(data.regle.mode); setValeur(String(data.regle.valeur)); setActivation(data.activation); } }, [data]);
+  useEffect(() => { if (data) { setMode(data.regle.mode); setValeur(String(data.regle.valeur)); setActivation(data.activation); setQr(data.qr); } }, [data]);
 
   async function enregistrer(e: React.FormEvent) {
     e.preventDefault(); setOccupe(true); setMsg(null);
     try {
-      await api('/api/admin/parametres', { method: 'PUT', corps: { mode, valeur: Number(valeur.replace(/\s/g, '').replace(',', '.')), activation } });
+      await api('/api/admin/parametres', { method: 'PUT', corps: { mode, valeur: Number(valeur.replace(/\s/g, '').replace(',', '.')), activation, qr } });
       setMsg({ type: 'succes', texte: 'Paramètres enregistrés. Les contrôleurs les récupèrent au prochain téléchargement de la liste.' });
     } catch (err) { setMsg({ type: 'erreur', texte: (err as ErreurApi).message }); }
     setOccupe(false);
@@ -49,6 +50,18 @@ export default function Parametres() {
           <Choix v="montant" courant={mode} set={setMode} titre="Montant minimum payé" texte="Ex. 25 000 FCFA payés, quel que soit le montant dû." />
         </div>
         <Champ label={mode === 'pourcentage' ? 'Pourcentage minimum (0 à 100)' : 'Montant minimum (FCFA)'} inputMode="decimal" value={valeur} onChange={(e) => setValeur(e.target.value)} className="max-w-xs" required />
+      </Carte>
+
+      <Carte className="space-y-4 p-5">
+        <div>
+          <h2 className="font-display text-lg font-extrabold">Contenu du QR code des étudiants</h2>
+          <p className="text-[15px] text-encre-2">Le scanner lit toujours les deux formats. Un matricule lu qui n’existe pas dans la base est enregistré « Non inscrit ».</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Choix v="matricule" courant={qr} set={setQr} titre="Le matricule" texte="Le scan lit le matricule et le compare à la base. QR le plus petit et le plus rapide à lire." />
+          <Choix v="jeton" courant={qr} set={setQr} titre="Jeton sécurisé" texte="Code aléatoire lié à l’étudiant : impossible à deviner ou à copier depuis le matricule d’un camarade." />
+        </div>
+        {qr === 'matricule' && <Message type="attention">Avec le matricule, quelqu’un qui connaît le matricule d’un camarade peut fabriquer son QR. Le jeton sécurisé évite cela.</Message>}
       </Carte>
 
       <Carte className="space-y-4 p-5">

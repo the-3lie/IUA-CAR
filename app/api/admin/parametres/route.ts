@@ -10,6 +10,7 @@ const schema = z
     mode: z.enum(['pourcentage', 'montant']),
     valeur: z.number({ invalid_type_error: 'Saisissez un nombre.' }).min(0, 'La valeur ne peut pas être négative.').max(100_000_000),
     activation: z.enum(['nom', 'code']),
+    qr: z.enum(['matricule', 'jeton']),
   })
   .refine((d) => d.mode !== 'pourcentage' || d.valeur <= 100, { message: 'Un pourcentage ne peut pas dépasser 100.' });
 
@@ -18,6 +19,7 @@ export const PUT = route(['admin'], async ({ req, session }) => {
   await setParametre('regle_mode', d.mode);
   await setParametre('regle_valeur', String(d.valeur));
   await setParametre('activation', d.activation);
-  await journaliser(session, 'parametres.modifie', `Règle : ${d.mode} ${d.valeur} · activation : ${d.activation}`);
+  await setParametre('qr_mode', d.qr);
+  await journaliser(session, 'parametres.modifie', `Règle : ${d.mode} ${d.valeur} · activation : ${d.activation} · QR : ${d.qr}`);
   return getParametres();
 });

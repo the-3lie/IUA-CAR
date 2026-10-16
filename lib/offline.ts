@@ -27,13 +27,16 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 function ouvrir(): Promise<IDBDatabase> {
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
-      const r = indexedDB.open('controle-car', 1);
-      r.onupgradeneeded = () => {
+      const r = indexedDB.open('controle-car', 2);
+      r.onupgradeneeded = (ev) => {
         const db = r.result;
-        const e = db.createObjectStore('etudiants', { keyPath: 'id' });
-        e.createIndex('jeton', 'jeton', { unique: true });
-        db.createObjectStore('meta');
-        db.createObjectStore('file', { keyPath: 'client_uid' });
+        if (ev.oldVersion < 1) {
+          const e = db.createObjectStore('etudiants', { keyPath: 'id' });
+          e.createIndex('jeton', 'jeton', { unique: true });
+          db.createObjectStore('meta');
+          db.createObjectStore('file', { keyPath: 'client_uid' });
+        }
+        if (ev.oldVersion < 2) r.transaction!.objectStore('etudiants').createIndex('matricule', 'matricule', { unique: true });
       };
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => { dbPromise = null; reject(r.error); };
@@ -69,6 +72,11 @@ export async function lireMeta<T>(cle: string): Promise<T | undefined> {
 export async function etudiantParJeton(jeton: string): Promise<EtudiantLocal | undefined> {
   const db = await ouvrir();
   return promesse<EtudiantLocal | undefined>(db.transaction('etudiants').objectStore('etudiants').index('jeton').get(jeton));
+}
+
+export async function etudiantParMatricule(matricule: string): Promise<EtudiantLocal | undefined> {
+  const db = await ouvrir();
+  return promesse<EtudiantLocal | undefined>(db.transaction('etudiants').objectStore('etudiants').index('matricule').get(matricule));
 }
 
 export async function etudiantParId(id: number): Promise<EtudiantLocal | undefined> {
