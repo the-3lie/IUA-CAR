@@ -11,6 +11,7 @@ export type Affiche = {
   car?: string | null;
   solde?: number;
   horsLigne: boolean;
+  seq: number;
 };
 
 const STYLE: Record<Resultat, { fond: string; texte: string; bouton: string }> = {
@@ -21,6 +22,8 @@ const STYLE: Record<Resultat, { fond: string; texte: string; bouton: string }> =
   invalide: { fond: 'bg-danger', texte: 'text-white', bouton: 'bg-white text-danger' },
   desactive: { fond: 'bg-danger', texte: 'text-white', bouton: 'bg-white text-danger' },
 };
+
+export const DUREE_MS = 2000;
 
 function bip(ok: boolean) {
   try {
@@ -45,13 +48,12 @@ export default function ResultatPlein({ a, onFermer }: { a: Affiche; onFermer: (
   useEffect(() => {
     bip(vert);
     navigator.vibrate?.(vert ? 80 : [200, 80, 200]);
-    if (!vert) return;
-    const t = setTimeout(onFermer, 2200); // le vert se referme seul pour enchaîner les montées
+    const t = setTimeout(onFermer, DUREE_MS); // tout résultat se referme seul après 2 s
     return () => clearTimeout(t);
   }, [vert, onFermer]);
 
   return (
-    <div role="alertdialog" aria-live="assertive" aria-label={RESULTAT_LABEL[a.resultat]}
+    <div role="alertdialog" aria-live="assertive" aria-label={RESULTAT_LABEL[a.resultat]} onClick={onFermer}
          className={`apparition fixed inset-0 z-50 flex flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] ${s.fond} ${s.texte}`}>
       <div className="flex flex-1 flex-col justify-center gap-4">
         <svg viewBox="0 0 24 24" className="size-24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -74,9 +76,10 @@ export default function ResultatPlein({ a, onFermer }: { a: Affiche; onFermer: (
         )}
         {a.horsLigne && <p className="text-base font-medium opacity-90">Enregistré hors-ligne : synchronisation dès le retour du réseau.</p>}
       </div>
-      <button onClick={onFermer} className={`min-h-16 rounded-2xl text-xl font-bold ${s.bouton}`}>
-        {vert ? 'Suivant' : 'Compris, scanner le suivant'}
-      </button>
+      <div className="h-2 overflow-hidden rounded-full bg-black/25" aria-hidden>
+        <div className="minuterie h-full rounded-full bg-current" style={{ animationDuration: `${DUREE_MS}ms` }} />
+      </div>
+      <p className="mt-3 text-center text-base font-semibold opacity-90">Scannez le suivant, ou touchez l’écran pour fermer</p>
     </div>
   );
 }

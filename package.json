@@ -11,8 +11,8 @@
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
     "bcryptjs": "^3.0.3",
-    "html5-qrcode": "^2.3.8",
     "jose": "^6.2.12",
+    "jsqr": "^1.4.0",
     "next": "^15.5.27",
     "qrcode.react": "^4.2.0",
     "react": "^19.3.0",

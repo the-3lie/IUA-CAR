@@ -41,7 +41,9 @@ export default function Controleur() {
   const [synchro, setSynchro] = useState(false);
   const [confirmer, setConfirmer] = useState<string | null>(null);
 
-  const verrou = useRef(false);
+  const dernierCode = useRef({ texte: '', t: 0 });
+  const seq = useRef(0);
+  const minuteurSync = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recents = useRef(new Map<string, number>());
   const serveurJour = useRef<any[]>([]);
   const enSynchro = useRef(false);
@@ -64,10 +66,10 @@ export default function Controleur() {
   }, []);
 
   /* ---------- scans du jour (serveur + file d'attente locale) ---------- */
-  const rafraichirJour = useCallback(async () => {
+  const rafraichirJour = useCallback(async (avecServeur = true) => {
     const file = await listerFile().catch(() => [] as EntreeFile[]);
     setAttente(file.length);
-    if (navigator.onLine) {
+    if (avecServeur && navigator.onLine) {
       try { serveurJour.current = (await api<{ scans: any[] }>('/api/controleur/scans', { delai: 6000 })).scans; } catch { /* garde la dernière liste */ }
     }
     const enFile = new Set(file.map((f) => f.client_uid));
@@ -91,6 +93,7 @@ export default function Controleur() {
     if (file.length === 0) { if (manuel) setMsg({ type: 'succes', texte: 'Tout est déjà synchronisé.' }); return; }
     enSynchro.current = true;
     setSynchro(true);
+    let sansErreur = true;
     try {
       for (let i = 0; i < file.length; i += 100) {
         const lot = file.slice(i, i + 100);
@@ -107,12 +110,21 @@ export default function Controleur() {
       }
       if (manuel) setMsg({ type: 'succes', texte: `${file.length} scan(s) synchronisé(s).` });
     } catch (e) {
+      sansErreur = false;
       if ((e as ErreurApi).code !== 'reseau') setMsg({ type: 'erreur', texte: `Synchronisation impossible : ${(e as ErreurApi).message}` });
     }
     enSynchro.current = false;
     setSynchro(false);
-    rafraichirJour();
+    await rafraichirJour();
+    // Des scans sont arrivés pendant l'envoi : on repart aussitôt.
+    if (sansErreur && navigator.onLine && (await listerFile().catch(() => [])).length > 0) setTimeout(() => synchroniser(), 300);
   }, [rafraichirJour]);
+
+  /** Envoi en arrière-plan juste après un scan : le contrôleur n'attend jamais le réseau. */
+  const planifierSync = useCallback(() => {
+    if (minuteurSync.current) clearTimeout(minuteurSync.current);
+    minuteurSync.current = setTimeout(() => synchroniser(), 350);
+  }, [synchroniser]);
 
   /* ---------- démarrage ---------- */
   useEffect(() => {
@@ -138,7 +150,8 @@ export default function Controleur() {
     window.addEventListener('online', on);
     window.addEventListener('offline', off);
     const t = setInterval(() => { if (navigator.onLine) synchroniser(); }, 20000);
-    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); clearInterval(t); };
+    const t2 = setInterval(() => { if (navigator.onLine && !enSynchro.current) telecharger(true); }, 5 * 60000);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); clearInterval(t); clearInterval(t2); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -147,12 +160,12 @@ export default function Controleur() {
   }, [carId, type]);
 
   /* ---------- enregistrement d'un scan ---------- */
-  const fermer = useCallback(() => { verrou.current = false; setAffiche(null); }, []);
+  const fermer = useCallback(() => setAffiche(null), []);
+  const montrer = (a: Omit<Affiche, 'seq'>) => setAffiche({ ...a, seq: ++seq.current });
 
   async function scanLocal(base: Entree & { car_id: number; type: TypePassage; client_uid: string }) {
     if (!liste) {
       setMsg({ type: 'erreur', texte: 'Pas de réseau et la liste des étudiants n’a jamais été téléchargée.' });
-      verrou.current = false;
       return;
     }
     let etu: Awaited<ReturnType<typeof etudiantParId>>;
@@ -177,22 +190,24 @@ export default function Controleur() {
     await ajouterFile({
       ...base, horodatage: new Date().toISOString(), resultat, detail, doublon, nom, matricule: etu?.matricule,
     });
-    setAffiche({
+    montrer({
       resultat, detail, doublon, nom, matricule: etu?.matricule, car: etu ? (etu.car_id ? nomCar(etu.car_id) : null) : undefined,
-      solde: etu?.solde, horsLigne: true,
+      solde: etu?.solde, horsLigne: !navigator.onLine,
     });
-    rafraichirJour();
+    rafraichirJour(false);
   }
 
   async function traiter(entree: Entree) {
-    if (carId === null) { verrou.current = false; return; }
+    if (carId === null) return;
     setMsg(null);
     const base = { ...entree, car_id: carId, type, client_uid: uid() };
+    // Liste présente : décision instantanée sur le téléphone (même règle que le serveur), envoi en arrière-plan.
+    if (liste) { await scanLocal(base); planifierSync(); return; }
     if (navigator.onLine) {
       try {
         const s = await api<ScanSortie>('/api/controleur/scan', { corps: base, delai: 7000 });
         if (s.etudiant) recents.current.set(`${s.etudiant.id}:${type}`, Date.now());
-        setAffiche({
+        montrer({
           resultat: s.resultat, detail: s.detail, doublon: s.doublon,
           nom: s.etudiant?.nom ?? entree.nom_saisi ?? 'QR non reconnu', matricule: s.etudiant?.matricule,
           car: s.etudiant ? s.etudiant.car : undefined, solde: s.etudiant?.solde, horsLigne: false,
@@ -202,7 +217,6 @@ export default function Controleur() {
       } catch (e) {
         if ((e as ErreurApi).code !== 'reseau') {
           setMsg({ type: 'erreur', texte: (e as ErreurApi).message });
-          verrou.current = false;
           return;
         }
       }
@@ -210,15 +224,16 @@ export default function Controleur() {
     await scanLocal(base);
   }
 
+  // Scan continu : jamais bloqué par l'affichage d'un résultat. Seul le même QR vu dans les 3 s est ignoré.
   const surCode = (texte: string) => {
-    if (verrou.current) return;
-    verrou.current = true;
+    const now = Date.now();
+    if (texte === dernierCode.current.texte && now - dernierCode.current.t < 3000) return;
+    dernierCode.current = { texte, t: now };
     traiter({ jeton: texte });
   };
 
   function depuisRecherche(e: Entree) {
     setRecherche(false);
-    verrou.current = true;
     traiter(e);
   }
 
@@ -382,7 +397,7 @@ export default function Controleur() {
           onFermer={() => setRecherche(false)}
         />
       )}
-      {affiche && <ResultatPlein a={affiche} onFermer={fermer} />}
+      {affiche && <ResultatPlein key={affiche.seq} a={affiche} onFermer={fermer} />}
     </main>
   );
 }

@@ -48,6 +48,7 @@ button:disabled { cursor: not-allowed; }
 .apparition { animation: apparition .16s ease-out; }
 @media (prefers-reduced-motion: reduce) { .apparition { animation: none; } }
 
-/* Zone de lecture du scanner */
-#lecteur video { width: 100% !important; height: 100% !important; object-fit: cover; }
-#lecteur { background: #000; }
+
+/* Minuterie des 2 s d'affichage du résultat */
+@keyframes minuterie { from { width: 100%; } to { width: 0; } }
+.minuterie { animation-name: minuterie; animation-timing-function: linear; animation-fill-mode: forwards; }
