@@ -2,7 +2,7 @@ import { ApiError } from './errors';
 import { query, sql } from './db';
 import { getRegle } from './regle';
 import {
-  evaluer, lireQr, statutPaiement,
+  cleMatricule, evaluer, lireQr, statutPaiement,
   type Resultat, type Statut, type TypePassage,
 } from './shared';
 
@@ -67,19 +67,26 @@ export async function traiterLot(entrees: ScanEntree[], controleurId: number): P
 
   const lus = entrees.map((e) => (e.jeton ? lireQr(e.jeton) : null));
   const jetons = lus.flatMap((q) => (q?.type === 'jeton' ? [q.jeton] : []));
-  const matricules = lus.flatMap((q) => (q?.type === 'matricule' ? [q.matricule] : []));
+  const matricules = lus.flatMap((q) => (q?.type === 'matricule' ? q.candidats : []));
+  const cles = [...new Set(matricules.map(cleMatricule))];
   const ids = [
     ...entrees.map((e) => e.etudiant_id).filter((x): x is number => !!x),
     ...dejaVus.map((r) => r.etudiant_id).filter((x: unknown): x is number => !!x),
   ];
   const etudiants = await query<any>(
     `SELECT id, matricule, nom, car_id, montant_du, total_paye, solde, actif, jeton_qr
-       FROM etudiants WHERE jeton_qr = ANY($1::text[]) OR id = ANY($2::int[]) OR matricule = ANY($3::text[])`,
-    [jetons, ids, matricules],
+       FROM etudiants WHERE jeton_qr = ANY($1::text[]) OR id = ANY($2::int[]) OR matricule = ANY($3::text[])
+          OR regexp_replace(matricule, '[^A-Z0-9]', '', 'g') = ANY($4::text[])`,
+    [jetons, ids, matricules, cles],
   );
   const parJeton = new Map(etudiants.map((e) => [e.jeton_qr as string, e]));
   const parId = new Map(etudiants.map((e) => [e.id as number, e]));
   const parMatricule = new Map(etudiants.map((e) => [e.matricule as string, e]));
+  const parCle = new Map<string, any>();
+  for (const e of etudiants) if (!parCle.has(cleMatricule(e.matricule))) parCle.set(cleMatricule(e.matricule), e);
+  /** Retrouve l'étudiant d'un QR de carte : match exact du matricule, sinon match « souple » (tirets, espaces). */
+  const trouver = (cands: string[]) =>
+    cands.map((c) => parMatricule.get(c)).find(Boolean) ?? cands.map((c) => parCle.get(cleMatricule(c))).find(Boolean);
 
   const resume = (e: any): EtudiantResume => ({
     id: e.id, nom: e.nom, matricule: e.matricule, car: e.car_id ? nomCar(e.car_id) : null,
@@ -136,7 +143,7 @@ export async function traiterLot(entrees: ScanEntree[], controleurId: number): P
         else ({ resultat, detail } = evaluer(etudiant, e.car_id, regle, nomCar));
       } else {
         // Le QR contient un matricule : on le compare à la base.
-        etudiant = parMatricule.get(q.matricule);
+        etudiant = trouver(q.candidats);
         if (!etudiant) {
           matriculeLu = q.matricule;
           nomSaisi = `Matricule ${q.matricule}`;

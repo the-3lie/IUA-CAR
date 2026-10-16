@@ -8,7 +8,7 @@ import Recherche from '@/components/controleur/Recherche';
 import ResultatPlein, { type Affiche } from '@/components/controleur/ResultatPlein';
 import { api, deconnecter, ErreurApi } from '@/lib/client';
 import {
-  ajouterFile, enregistrerListe, etudiantParId, etudiantParJeton, etudiantParMatricule, listerFile, lireMeta, retirerDeFile,
+  ajouterFile, enregistrerListe, etudiantParId, etudiantParJeton, etudiantParCandidats, listerFile, lireMeta, retirerDeFile,
   type DonneesListe, type EntreeFile,
 } from '@/lib/offline';
 import {
@@ -183,7 +183,7 @@ export default function Controleur() {
         else ({ resultat, detail } = evaluer(etu, base.car_id, liste.regle, nomCar));
       } else {
         // Matricule lu dans le QR, comparé à la liste des étudiants.
-        etu = await etudiantParMatricule(q.matricule);
+        etu = await etudiantParCandidats(q.candidats);
         if (!etu) { matLu = q.matricule; resultat = 'non_inscrit'; detail = `Matricule ${q.matricule} absent de la base`; }
         else ({ resultat, detail } = evaluer(etu, base.car_id, liste.regle, nomCar));
       }

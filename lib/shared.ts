@@ -112,7 +112,30 @@ export function jetonDepuisQr(contenu: string): string | null {
   return /^[A-Za-z0-9_-]{20,64}$/.test(j) ? j : null;
 }
 
-export type QrLu = { type: 'jeton'; jeton: string } | { type: 'matricule'; matricule: string };
+export type QrLu =
+  | { type: 'jeton'; jeton: string }
+  | { type: 'matricule'; matricule: string; candidats: string[] };
+
+/** Clé de comparaison d'un matricule : majuscules, sans tirets, points, barres ni espaces. */
+export const cleMatricule = (m: string) => m.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+/**
+ * Extrait les matricules possibles d'un QR de carte : le texte entier, ou chacun de ses morceaux
+ * (cas d'un lien « …?mat=IUA241001 », d'un texte « NOM;IUA241001 », etc.). Le premier qui existe en base gagne.
+ */
+function candidatsMatricule(c: string): string[] {
+  const vus = new Set<string>();
+  const out: string[] = [];
+  const ajouter = (t: string, exigerChiffre: boolean) => {
+    const m = t.replace(/\s+/g, '').toUpperCase();
+    if (!/^[A-Z0-9][A-Z0-9._\/-]{1,39}$/.test(m) || (exigerChiffre && !/\d/.test(m)) || vus.has(m)) return;
+    vus.add(m);
+    out.push(m);
+  };
+  ajouter(c, false);
+  for (const t of c.split(/[\s,;|:=?&#"'()\[\]{}<>\\/]+/)) if (t.length >= 3) ajouter(t, true);
+  return out.slice(0, 12);
+}
 
 /**
  * Interprète le contenu brut d'un QR code :
@@ -126,8 +149,9 @@ export function lireQr(contenu: string): QrLu | null {
   const j = jetonDepuisQr(c);
   if (j) return { type: 'jeton', jeton: j };
   if (c.toUpperCase().startsWith(PREFIXE_QR)) return null;
-  const m = c.replace(/\s+/g, '').toUpperCase();
-  return /^[A-Z0-9][A-Z0-9._\/-]{1,39}$/.test(m) ? { type: 'matricule', matricule: m } : null;
+  const candidats = candidatsMatricule(c);
+  if (!candidats.length) return null;
+  return { type: 'matricule', matricule: candidats.find((x) => /\d/.test(x)) ?? candidats[0], candidats };
 }
 
 export type ModeQr = 'matricule' | 'jeton';

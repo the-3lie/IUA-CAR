@@ -1,6 +1,6 @@
-import { normaliser, type EtudiantScan, type Regle, type Resultat, type TypePassage } from './shared';
+import { cleMatricule, normaliser, type EtudiantScan, type Regle, type Resultat, type TypePassage } from './shared';
 
-export type EtudiantLocal = EtudiantScan & { jeton: string; nom_n: string };
+export type EtudiantLocal = EtudiantScan & { jeton: string; nom_n: string; cle: string };
 export type DonneesListe = {
   cars: { id: number; nom: string }[];
   regle: Regle;
@@ -27,7 +27,7 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 function ouvrir(): Promise<IDBDatabase> {
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
-      const r = indexedDB.open('controle-car', 2);
+      const r = indexedDB.open('controle-car', 3);
       r.onupgradeneeded = (ev) => {
         const db = r.result;
         if (ev.oldVersion < 1) {
@@ -37,6 +37,7 @@ function ouvrir(): Promise<IDBDatabase> {
           db.createObjectStore('file', { keyPath: 'client_uid' });
         }
         if (ev.oldVersion < 2) r.transaction!.objectStore('etudiants').createIndex('matricule', 'matricule', { unique: true });
+        if (ev.oldVersion < 3) r.transaction!.objectStore('etudiants').createIndex('cle', 'cle');
       };
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => { dbPromise = null; reject(r.error); };
@@ -56,7 +57,7 @@ export async function enregistrerListe(d: DonneesListe) {
   const t = db.transaction(['etudiants', 'meta'], 'readwrite');
   const s = t.objectStore('etudiants');
   s.clear();
-  for (const e of d.etudiants) s.put({ ...e, nom_n: normaliser(e.nom) } satisfies EtudiantLocal);
+  for (const e of d.etudiants) s.put({ ...e, nom_n: normaliser(e.nom), cle: cleMatricule(e.matricule) } satisfies EtudiantLocal);
   const m = t.objectStore('meta');
   m.put(d.cars, 'cars');
   m.put(d.regle, 'regle');
@@ -77,6 +78,17 @@ export async function etudiantParJeton(jeton: string): Promise<EtudiantLocal | u
 export async function etudiantParMatricule(matricule: string): Promise<EtudiantLocal | undefined> {
   const db = await ouvrir();
   return promesse<EtudiantLocal | undefined>(db.transaction('etudiants').objectStore('etudiants').index('matricule').get(matricule));
+}
+
+/** Même logique que le serveur : match exact du matricule, sinon match souple (tirets, espaces). */
+export async function etudiantParCandidats(candidats: string[]): Promise<EtudiantLocal | undefined> {
+  for (const c of candidats) { const e = await etudiantParMatricule(c); if (e) return e; }
+  const db = await ouvrir();
+  for (const c of candidats) {
+    const e = await promesse<EtudiantLocal | undefined>(db.transaction('etudiants').objectStore('etudiants').index('cle').get(cleMatricule(c)));
+    if (e) return e;
+  }
+  return undefined;
 }
 
 export async function etudiantParId(id: number): Promise<EtudiantLocal | undefined> {
