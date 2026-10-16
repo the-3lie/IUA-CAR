@@ -90,7 +90,7 @@ export async function traiterLot(entrees: ScanEntree[], controleurId: number): P
 
   const resume = (e: any): EtudiantResume => ({
     id: e.id, nom: e.nom, matricule: e.matricule, car: e.car_id ? nomCar(e.car_id) : null,
-    montant_du: e.montant_du, total_paye: e.total_paye, solde: e.solde, statut: statutPaiement(e, regle),
+    montant_du: e.montant_du, total_paye: e.total_paye, solde: e.solde, statut: statutPaiement(e, regle, new Date()),
   });
 
   // Passages récents des étudiants concernés, pour repérer les doublons (même minute).
@@ -140,7 +140,7 @@ export async function traiterLot(entrees: ScanEntree[], controleurId: number): P
       } else if (q.type === 'jeton') {
         etudiant = parJeton.get(q.jeton);
         if (!etudiant) { resultat = 'invalide'; detail = 'QR inconnu ou périmé (régénéré)'; }
-        else ({ resultat, detail } = evaluer(etudiant, e.car_id, regle, nomCar));
+        else ({ resultat, detail } = evaluer(etudiant, e.car_id, regle, nomCar, new Date(t)));
       } else {
         // Le QR contient un matricule : on le compare à la base.
         etudiant = trouver(q.candidats);
@@ -149,12 +149,12 @@ export async function traiterLot(entrees: ScanEntree[], controleurId: number): P
           nomSaisi = `Matricule ${q.matricule}`;
           resultat = 'non_inscrit';
           detail = `Matricule ${q.matricule} absent de la base`;
-        } else ({ resultat, detail } = evaluer(etudiant, e.car_id, regle, nomCar));
+        } else ({ resultat, detail } = evaluer(etudiant, e.car_id, regle, nomCar, new Date(t)));
       }
     } else if (e.etudiant_id) {
       etudiant = parId.get(e.etudiant_id);
       if (!etudiant) { resultat = 'invalide'; detail = 'Étudiant introuvable'; }
-      else ({ resultat, detail } = evaluer(etudiant, e.car_id, regle, nomCar));
+      else ({ resultat, detail } = evaluer(etudiant, e.car_id, regle, nomCar, new Date(t)));
     } else {
       nomSaisi = (e.nom_saisi ?? '').trim().slice(0, 120) || 'Sans nom';
       resultat = 'non_inscrit';

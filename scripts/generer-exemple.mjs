@@ -7,35 +7,31 @@ const noms = [
   'DIALLO Mamadou', 'COULIBALY Fatoumata', 'OUATTARA Seydou', 'AKA Kouadio Serge', 'TANOH Estelle', 'SORO Yacouba',
   'KOFFI Amenan', 'DOSSO Aminata', 'GBAGBO Patrick', 'ZADI Rosine', 'BROU Alain', 'FOFANA Salimata', 'ADOU Cédric', 'SYLLA Kadidja',
 ];
-const montantCar = 150000;
 let n = 0;
-const ligne = (prefixe, nom, paye) => {
+const ligne = (nom, montant, paye) => {
   n++;
-  const mat = `${prefixe}${String(1000 + n)}`;
-  return [mat, nom, montantCar, paye, montantCar - paye];
+  return [`IUA24${String(1000 + n)}`, nom, montant, paye, montant - paye];
 };
 
 const enTete = ['Matricule', 'Nom et Prénoms', 'Montant', 'TOTPAYE', 'SOLDE'];
-const enTeteModalites = [...enTete, 'Tranche 1', 'Tranche 2', 'Echéance'];
+const enTeteModalites = [...enTete, 'Tranche 1', 'Tranche 2', 'Tranche 3'];
+const modalites = ['160 000 FCFA cumulés avant le 10/12', '310 000 FCFA cumulés avant le 10/03', '460 000 FCFA cumulés avant fin juin'];
 
-// CAR 5 : avec modalités de paiement (tranches / échéances)
+// CAR 5 : 460 000 FCFA / an, avec modalités de paiement
 const car5 = [enTeteModalites];
-noms.slice(0, 7).forEach((nom, i) => {
-  const paye = [150000, 150000, 75000, 150000, 0, 100000, 150000][i];
-  car5.push([...ligne('IUA24', nom, paye), '75 000 FCFA - 15/10/2026', '75 000 FCFA - 15/12/2026', '15/12/2026']);
-});
+noms.slice(0, 7).forEach((nom, i) => car5.push([...ligne(nom, 460000, [460000, 460000, 310000, 160000, 0, 100000, 460000][i]), ...modalites]));
 car5.push(['', '', '', '', '']);
-car5.push(['TOTAL', '', montantCar * 7, 0, 0]);
+car5.push(['TOTAL', '', 460000 * 7, 0, 0]);
 
-// CAR 11 : contient un doublon et une ligne sans matricule
+// CAR 11 : car moins cher (300 000 FCFA / an), avec un doublon et une ligne sans matricule
 const car11 = [enTete];
-noms.slice(7, 13).forEach((nom, i) => car11.push(ligne('IUA24', nom, [150000, 50000, 150000, 150000, 100000, 150000][i])));
-car11.push([car11[1][0], car11[1][1], montantCar, 150000, 0]); // doublon volontaire
-car11.push(['', 'SANS MATRICULE Test', montantCar, 150000, 0]); // erreur volontaire
+noms.slice(7, 13).forEach((nom, i) => car11.push(ligne(nom, 300000, [300000, 100000, 300000, 160000, 150000, 300000][i])));
+car11.push([car11[1][0], car11[1][1], 300000, 300000, 0]); // doublon volontaire
+car11.push(['', 'SANS MATRICULE Test', 300000, 300000, 0]); // erreur volontaire
 
 // CAR 21 : colonne CAR explicite
 const car21 = [[...enTete, 'CAR']];
-noms.slice(13).forEach((nom, i) => car21.push([...ligne('IUA24', nom, [150000, 150000, 25000, 150000, 150000, 0, 150000][i]), 'CAR 21']));
+noms.slice(13).forEach((nom, i) => car21.push([...ligne(nom, 460000, [460000, 310000, 100000, 460000, 160000, 0, 460000][i]), 'CAR 21']));
 
 const wb = XLSX.utils.book_new();
 for (const [nom, rows] of [['CAR 5', car5], ['CAR 11', car11], ['CAR 21', car21]]) {

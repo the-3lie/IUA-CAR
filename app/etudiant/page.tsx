@@ -10,6 +10,7 @@ type Passage = { id: number; horodatage: string; type: 'montee' | 'descente'; re
 type Moi = {
   matricule: string; nom: string; car: string | null; statut: Statut; statut_label: string;
   montant_du: number; total_paye: number; solde: number; modalites: string | null;
+  solde_complet: boolean; requis_aujourdhui: number; prochain_palier: { date: string; montant: number } | null;
   qr: string; historique: Passage[]; maj: string;
 };
 const CLE = 'cc_moi';
@@ -86,7 +87,7 @@ export default function EspaceEtudiant() {
               <p className="text-sm font-semibold text-encre-2">Car attribué</p>
               <p className="font-display text-5xl font-extrabold leading-none">{moi.car ?? 'Aucun'}</p>
             </div>
-            <PastilleStatut statut={moi.statut} className="mt-1" />
+            <PastilleStatut statut={moi.statut} label={moi.statut_label} className="mt-1" />
           </div>
           <div className="px-5 pb-4 pt-3">
             <p className="text-lg font-bold leading-tight">{moi.nom}</p>
@@ -120,6 +121,18 @@ export default function EspaceEtudiant() {
           <div className={`h-full rounded-full ${couleurBarre}`} style={{ width: `${ratio}%` }} />
         </div>
         <p className="mt-1.5 text-sm text-encre-2">{ratio} % payé</p>
+        <div className={`mt-4 rounded-xl px-4 py-3 text-[15px] ${moi.statut === 'en_regle' ? 'bg-ok-clair text-ok' : 'bg-alerte-clair text-alerte-texte'}`}>
+          {moi.solde_complet ? (
+            <p className="font-bold">Soldé : tout est payé pour l’année.</p>
+          ) : moi.statut === 'en_regle' ? (
+            <p className="font-bold">À jour. Minimum exigé aujourd’hui : {fcfa(moi.requis_aujourdhui)}.</p>
+          ) : (
+            <p className="font-bold">Pas à jour. Il faut avoir payé au moins {fcfa(moi.requis_aujourdhui)} au total ; il vous manque {fcfa(Math.max(0, moi.requis_aujourdhui - moi.total_paye))}.</p>
+          )}
+          {moi.prochain_palier && !moi.solde_complet && (
+            <p className="mt-1">À partir du {new Date(moi.prochain_palier.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} : {fcfa(moi.prochain_palier.montant)} payés au total.</p>
+          )}
+        </div>
         {moi.modalites && (
           <div className="mt-4 border-t border-trait pt-4">
             <h3 className="font-semibold">Modalités de paiement</h3>

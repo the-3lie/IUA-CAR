@@ -15,7 +15,7 @@ const TITRES: Record<TypeRapport, string> = {
   non_inscrits: 'Non-inscrits repérés',
   paiements_incomplets: 'Passages avec paiement incomplet',
   doublons: 'Doublons de scan',
-  etudiants_non_en_regle: 'Étudiants non en règle',
+  etudiants_non_en_regle: 'Étudiants pas à jour',
   codes_activation: 'Codes d’activation (comptes non activés)',
 };
 

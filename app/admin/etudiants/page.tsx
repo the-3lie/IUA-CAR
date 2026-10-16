@@ -46,7 +46,7 @@ export default function Etudiants() {
           <option value="sans">Sans car</option>
         </Selection>
         <Selection label="Paiement" value={statut} onChange={filtre(setStatut)}>
-          <option value="">Tous</option><option value="en_regle">En règle</option><option value="solde_a_payer">Solde à payer</option><option value="non_solde">Non soldé</option>
+          <option value="">Tous</option><option value="en_regle">À jour</option><option value="solde_a_payer">Pas à jour (paiement partiel)</option><option value="non_solde">Aucun paiement</option>
         </Selection>
         <Selection label="Compte" value={active} onChange={filtre(setActive)}>
           <option value="">Tous</option><option value="oui">Activé</option><option value="non">Non activé</option>

@@ -96,10 +96,10 @@ const STATUT_STYLE: Record<Statut, string> = {
   non_solde: 'bg-danger text-white',
 };
 
-export function PastilleStatut({ statut, className }: { statut: Statut; className?: string }) {
+export function PastilleStatut({ statut, className, label }: { statut: Statut; className?: string; label?: string }) {
   return (
     <span className={cx('inline-flex items-center rounded-full px-3 py-1 text-sm font-bold', STATUT_STYLE[statut], className)}>
-      {STATUT_LABEL[statut]}
+      {label ?? STATUT_LABEL[statut]}
     </span>
   );
 }

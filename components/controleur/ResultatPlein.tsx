@@ -1,6 +1,6 @@
 'use client';
 import { useEffect } from 'react';
-import { fcfa, RESULTAT_LABEL, type Resultat } from '@/lib/shared';
+import { titreResultat, type Resultat } from '@/lib/shared';
 
 export type Affiche = {
   resultat: Resultat;
@@ -53,7 +53,7 @@ export default function ResultatPlein({ a, onFermer }: { a: Affiche; onFermer: (
   }, [vert, onFermer]);
 
   return (
-    <div role="alertdialog" aria-live="assertive" aria-label={RESULTAT_LABEL[a.resultat]} onClick={onFermer}
+    <div role="alertdialog" aria-live="assertive" aria-label={titreResultat(a.resultat, a.detail)} onClick={onFermer}
          className={`apparition fixed inset-0 z-50 flex flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] ${s.fond} ${s.texte}`}>
       <div className="flex flex-1 flex-col justify-center gap-4">
         <svg viewBox="0 0 24 24" className="size-24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -61,16 +61,13 @@ export default function ResultatPlein({ a, onFermer }: { a: Affiche; onFermer: (
             : a.resultat === 'a_verifier' ? <path d="M12 4v10M12 19v.01" />
             : <path d="M6 6l12 12M18 6L6 18" />}
         </svg>
-        <p className="font-display text-6xl font-extrabold leading-none">{RESULTAT_LABEL[a.resultat]}</p>
+        <p className="font-display text-6xl font-extrabold leading-none">{titreResultat(a.resultat, a.detail)}</p>
         <div>
           <p className="text-3xl font-bold leading-tight">{a.nom}</p>
           {a.matricule && <p className="nombres mt-1 text-xl opacity-90">{a.matricule}</p>}
         </div>
         {a.car !== undefined && <p className="text-2xl font-bold">{a.car ?? 'Aucun car'}</p>}
         {a.detail && <p className="text-xl font-semibold">{a.detail}</p>}
-        {a.solde !== undefined && a.solde > 0 && a.resultat !== 'a_verifier' && a.resultat !== 'en_regle' && (
-          <p className="text-xl font-semibold">Solde : {fcfa(a.solde)}</p>
-        )}
         {a.doublon && (
           <p className="rounded-xl bg-black/25 px-4 py-3 text-lg font-bold">Déjà scanné il y a moins d’une minute.</p>
         )}

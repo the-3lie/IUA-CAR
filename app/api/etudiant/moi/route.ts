@@ -1,7 +1,7 @@
 import { route } from '@/lib/api';
 import { sql } from '@/lib/db';
 import { getParametres } from '@/lib/regle';
-import { STATUT_LABEL, contenuQr, statutPaiement } from '@/lib/shared';
+import { STATUT_LABEL, contenuQr, estSolde, montantRequis, prochainPalier, statutPaiement } from '@/lib/shared';
 
 export const GET = route(['etudiant'], async ({ session }) => {
   const [rows, params, hist] = await Promise.all([
@@ -22,7 +22,10 @@ export const GET = route(['etudiant'], async ({ session }) => {
     nom: e.nom,
     car: e.car,
     statut,
-    statut_label: STATUT_LABEL[statut],
+    statut_label: estSolde(e, params.regle) ? 'Soldé' : STATUT_LABEL[statut],
+    solde_complet: estSolde(e, params.regle),
+    requis_aujourdhui: montantRequis(e, params.regle),
+    prochain_palier: prochainPalier(e, params.regle),
     montant_du: e.montant_du,
     total_paye: e.total_paye,
     solde: e.solde,

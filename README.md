@@ -66,15 +66,27 @@ Le car est pris dans la colonne `CAR`, sinon dans le nom de la feuille ou du fic
 
 ## Règles métier
 
-**Statut de paiement** (réglable dans *Paramètres*) : *En règle* si le paiement atteint la règle (pourcentage du montant dû, par défaut 100 %, ou montant minimum) ; *Solde à payer* si un paiement partiel existe ; *Non soldé* si rien n'est payé.
+**Règle « à jour » : paliers selon la date** (réglable dans *Paramètres*). Le « Montant » du fichier Excel est le total dû pour l'année ; le total payé (`TOTPAYE`) est comparé au cumul exigé à la date du scan :
+
+| Période | Cumul payé exigé pour être à jour |
+|---|---|
+| du 1ᵉʳ juillet au 9 décembre | **160 000 FCFA** |
+| du 10 décembre au 9 mars | **310 000 FCFA** |
+| du 10 mars à fin juin | **460 000 FCFA** (l'étudiant est alors **soldé**) |
+
+- Un car moins cher que 460 000 FCFA par an : l'exigence est **plafonnée au « Montant » du fichier** (ex. montant 300 000 → jamais plus de 300 000 exigés). Option *paliers proportionnels* dans Paramètres (ex. montant 230 000 → 80 000, 155 000, 230 000).
+- Les montants et les trois dates sont modifiables dans *Paramètres* (l'année suivante, il suffit de changer les chiffres). Les modes « pourcentage du dû » et « montant fixe » existent aussi.
+- La date utilisée est celle **du scan** (un scan fait hors-ligne est jugé à son heure réelle). Les scans, filtres, statistiques et l'espace étudiant appliquent exactement la même règle ; l'étudiant voit le minimum exigé aujourd'hui et le prochain palier.
 
 **Résultat d'un scan**
 
-| Couleur | Résultat | Cas |
+| Couleur | Titre | Cas |
 |---|---|---|
-| 🟢 | En règle | Règle respectée et bon car |
-| 🟠 | À vérifier | Paiement incomplet (solde affiché) et/ou étudiant rattaché à un autre car |
-| 🔴 | Non soldé / Non inscrit / QR invalide / Compte désactivé | À signaler |
+| 🟢 | **Soldé** / **À jour** | Cumul payé ≥ exigence du jour, et bon car (le détail affiche le reste à payer pour l'année) |
+| 🟠 | **Pas à jour** | Paiement partiel sous l'exigence du jour (détail : payé, requis, ce qui manque) |
+| 🟠 | **À vérifier** | À jour mais étudiant rattaché à un autre car |
+| 🔴 | **Pas à jour** | Aucun paiement enregistré |
+| 🔴 | Non inscrit / QR invalide / Compte désactivé | À signaler |
 
 Un second scan du même étudiant (même type) dans la minute est enregistré avec un avertissement **doublon**.
 

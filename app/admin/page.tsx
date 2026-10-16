@@ -45,11 +45,11 @@ export default function TableauDeBord() {
 
         <div className="flex flex-col gap-6">
           <Carte className="p-6">
-            <p className="font-semibold text-encre-2">Étudiants en règle</p>
+            <p className="font-semibold text-encre-2">Étudiants à jour</p>
             <p className="nombres mt-1 font-display text-5xl font-extrabold leading-none">{s.taux_en_regle} %</p>
             <div className="mt-3 h-3 overflow-hidden rounded-full bg-trait/70"><div className="h-full rounded-full bg-ok" style={{ width: `${s.taux_en_regle}%` }} /></div>
             <p className="mt-2 text-sm text-encre-2">
-              {s.en_regle} sur {s.total_etudiants} étudiants actifs · règle : {s.regle.mode === 'pourcentage' ? `${s.regle.valeur} % payé` : `au moins ${s.regle.valeur.toLocaleString('fr-FR')} FCFA`}
+              {s.en_regle} sur {s.total_etudiants} étudiants actifs · règle : {s.regle.mode === 'paliers' ? `paliers ${[s.regle.paliers.p1, s.regle.paliers.p2, s.regle.paliers.p3].map((v) => v.toLocaleString('fr-FR')).join(' / ')} FCFA` : s.regle.mode === 'pourcentage' ? `${s.regle.valeur} % payé` : `au moins ${s.regle.valeur.toLocaleString('fr-FR')} FCFA`}
             </p>
           </Carte>
           <Carte className="border-danger/40 bg-danger-clair p-6">
@@ -65,7 +65,7 @@ export default function TableauDeBord() {
         <div className="overflow-x-auto">
           <table className="mt-3 w-full text-left">
             <thead className="border-y border-trait bg-fond text-sm text-encre-2">
-              <tr><th className="px-6 py-2 font-semibold">Car</th><th className="px-3 py-2 text-right font-semibold">Étudiants</th><th className="px-3 py-2 text-right font-semibold">En règle</th><th className="w-1/3 px-6 py-2 font-semibold">Part en règle</th></tr>
+              <tr><th className="px-6 py-2 font-semibold">Car</th><th className="px-3 py-2 text-right font-semibold">Étudiants</th><th className="px-3 py-2 text-right font-semibold">À jour</th><th className="w-1/3 px-6 py-2 font-semibold">Part à jour</th></tr>
             </thead>
             <tbody className="divide-y divide-trait">
               {[...s.par_car, ...(s.sans_car.total ? [{ id: 0, nom: 'Sans car', ...s.sans_car }] : [])].map((c) => {

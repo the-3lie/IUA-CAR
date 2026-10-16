@@ -12,7 +12,7 @@ import {
   type DonneesListe, type EntreeFile,
 } from '@/lib/offline';
 import {
-  evaluer, formatDateHeure, formatHeure, lireQr, RESULTAT_LABEL, TYPE_LABEL,
+  evaluer, formatDateHeure, formatHeure, lireQr, titreResultat, TYPE_LABEL,
   type Regle, type Resultat, type TypePassage,
 } from '@/lib/shared';
 
@@ -380,11 +380,11 @@ export default function Controleur() {
             <ul className="mt-2 divide-y divide-trait">
               {jour.map((l) => (
                 <li key={l.cle} className="flex items-center gap-3 px-4 py-2.5">
-                  <span className={cx('size-3.5 shrink-0 rounded-full', POINT[l.resultat])} title={RESULTAT_LABEL[l.resultat]} />
+                  <span className={cx('size-3.5 shrink-0 rounded-full', POINT[l.resultat])} title={titreResultat(l.resultat, l.detail ?? '')} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{l.nom}</p>
                     <p className="truncate text-sm text-encre-2">
-                      {RESULTAT_LABEL[l.resultat]} · {TYPE_LABEL[l.type]}{l.doublon ? ' · doublon' : ''}{l.enAttente ? ' · en attente' : ''}
+                      {titreResultat(l.resultat, l.detail ?? '')} · {TYPE_LABEL[l.type]}{l.doublon ? ' · doublon' : ''}{l.enAttente ? ' · en attente' : ''}
                     </p>
                   </div>
                   <div className="text-right">
