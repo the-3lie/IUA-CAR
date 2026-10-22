@@ -46,6 +46,12 @@ export function palierRequis(p: Paliers, date: Date = new Date()): number {
   return p.p1;
 }
 
+/** Phase « soldé possible » : du 10 mars (bascule2) jusqu'à la réinitialisation du 1er juillet (exclu). */
+function phaseSolde(p: Paliers, date: Date): boolean {
+  const j = (date.getUTCMonth() + 1) * 100 + date.getUTCDate();
+  return j >= md(p.bascule2) && j < md(p.reinit);
+}
+
 /** Montant que l'étudiant doit avoir payé (cumul) pour être « à jour » à la date donnée. */
 export function montantRequis(e: Pick<EtudiantPaiement, 'montant_du'>, regle: Regle, date: Date = new Date()): number {
   const du = Number(e.montant_du) || 0;
@@ -57,13 +63,18 @@ export function montantRequis(e: Pick<EtudiantPaiement, 'montant_du'>, regle: Re
   return Math.min(du, pal); // un car moins cher : le montant du fichier plafonne l'exigence
 }
 
-/** Soldé = tout ce qui est dû pour l'année est payé (plafonné au dernier palier). */
-export function estSolde(e: EtudiantPaiement, regle: Regle): boolean {
+/**
+ * Soldé = tout l'année est payée, et seulement du 10 mars à fin juin (en mode paliers).
+ * Avant le 10 mars, un étudiant qui a déjà tout payé est simplement « à jour ».
+ * Cible : 460 000 FCFA, ou le prix annuel de l'étudiant (payé + SOLDE du fichier) s'il est plus bas.
+ */
+export function estSolde(e: EtudiantPaiement, regle: Regle, date: Date = new Date()): boolean {
   const paye = Number(e.total_paye) || 0;
   const du = Number(e.montant_du) || 0;
   if (paye <= 0) return false;
-  if (du <= 0) return (Number(e.solde) || 0) <= 0;
-  const cible = regle.mode === 'paliers' ? Math.min(du, regle.paliers.p3) : du;
+  if (regle.mode !== 'paliers') return du <= 0 ? (Number(e.solde) || 0) <= 0 : paye >= du - 0.001;
+  if (!phaseSolde(regle.paliers, date)) return false;
+  const cible = du > 0 ? Math.min(du, regle.paliers.p3) : regle.paliers.p3;
   return paye >= cible - 0.001;
 }
 
@@ -75,7 +86,7 @@ export function statutPaiement(e: EtudiantPaiement, regle: Regle, date: Date = n
 }
 
 /** Prochaine échéance qui relève le montant exigé (null si aucune ou si la règle n'est pas à paliers). */
-export function prochainPalier(e: Pick<EtudiantPaiement, 'montant_du'>, regle: Regle, date: Date = new Date()): { date: string; montant: number } | null {
+export function prochainPalier(e: Pick<EtudiantPaiement, 'montant_du'> & Partial<Pick<EtudiantPaiement, 'total_paye'>>, regle: Regle, date: Date = new Date()): { date: string; montant: number } | null {
   if (regle.mode !== 'paliers') return null;
   const p = regle.paliers;
   const y = date.getUTCFullYear();
@@ -90,7 +101,7 @@ export function prochainPalier(e: Pick<EtudiantPaiement, 'montant_du'>, regle: R
   for (const j of jours) {
     if (j.getTime() <= aujourdhui) continue;
     const m = montantRequis(e, regle, j);
-    if (m > actuel + 0.001) return { date: j.toISOString().slice(0, 10), montant: m };
+    if (m > actuel + 0.001 && m > (Number(e.total_paye) || 0) + 0.001) return { date: j.toISOString().slice(0, 10), montant: m };
   }
   return null;
 }
@@ -156,8 +167,9 @@ export function evaluer(
     return { resultat: 'a_verifier', detail: notes.join(' · ') };
   }
   if (autreCar) return { resultat: 'a_verifier', detail: autreCar };
-  if (estSolde(e, regle)) return { resultat: 'en_regle', detail: 'Soldé' };
-  return { resultat: 'en_regle', detail: `À jour · reste ${fcfa(Math.max(0, Number(e.solde) || 0))} pour l’année` };
+  if (estSolde(e, regle, date)) return { resultat: 'en_regle', detail: 'Soldé' };
+  const reste = Math.max(0, Number(e.solde) || 0);
+  return { resultat: 'en_regle', detail: reste > 0 ? `À jour · reste ${fcfa(reste)} pour l’année` : 'À jour' };
 }
 
 /** Titre affiché en grand : « Soldé », « À jour », « Pas à jour », « À vérifier »… */

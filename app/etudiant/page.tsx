@@ -113,7 +113,7 @@ export default function EspaceEtudiant() {
       <Carte className="mx-5 mt-6 p-5">
         <h2 className="font-display text-xl font-extrabold">Mon paiement</h2>
         <dl className="mt-3 space-y-2">
-          <Ligne k="Montant total dû" v={fcfa(moi.montant_du)} />
+          {moi.montant_du > 0 && <Ligne k="Montant total dû" v={fcfa(moi.montant_du)} />}
           <Ligne k="Déjà payé" v={fcfa(moi.total_paye)} />
           <Ligne k="Solde restant" v={fcfa(moi.solde)} fort />
         </dl>

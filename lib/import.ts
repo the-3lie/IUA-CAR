@@ -47,12 +47,15 @@ export async function analyser(lignes: LigneBrute[]) {
     const m = parseMontant(l.montant), p = parseMontant(l.paye), s = parseMontant(l.solde);
     if (m === 'invalide' || p === 'invalide' || s === 'invalide') { err(`Montant illisible (${matricule})`); continue; }
     if ([m, p, s].some((x) => typeof x === 'number' && x < 0)) { err(`Montant négatif (${matricule})`); continue; }
-    const paye = p ?? 0;
-    const solde = s ?? (m !== null ? Math.max(m - paye, 0) : 0);
-    const du = m ?? paye + solde;
-    if (m !== null && s !== null && Math.abs(m - paye - s) > 1) {
+    // « Montant » = total DÉJÀ PAYÉ par l'étudiant (c'est lui que l'on compare aux paliers).
+    // À défaut de colonne Montant, on retombe sur TOTPAYE.
+    const paye = m ?? p ?? 0;
+    const solde = s ?? 0;
+    // Prix annuel = payé + reste à payer (SOLDE). Sans colonne SOLDE il est inconnu (0) : seuils standards, sans plafond.
+    const du = s === null ? 0 : paye + s;
+    if (m !== null && p !== null && Math.abs(m - p) > 1) {
       incoherences++;
-      if (avertissements.length < 30) avertissements.push(`${matricule} (${lieu}) : montant − payé ≠ solde (${m} − ${paye} ≠ ${s}). Le solde du fichier est conservé.`);
+      if (avertissements.length < 30) avertissements.push(`${matricule} (${lieu}) : Montant (${m}) ≠ TOTPAYE (${p}). Le Montant du fichier est conservé comme total payé.`);
     }
 
     const empl = vus.get(matricule);

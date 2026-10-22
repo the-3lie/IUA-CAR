@@ -59,14 +59,15 @@ npm run exemple              # régénère exemple/etudiants-exemple.xlsx
 5. **Admin › Rapports** : retrouvez les passages, non-inscrits, paiements incomplets, doublons ; exportez en Excel.
 
 ### Format des fiches Excel
-Première ligne = en-têtes. Colonnes lues (accents, casse et espaces ignorés) : `Matricule`, `Nom et Prénoms`, `Montant`, `TOTPAYE`, `SOLDE`, `CAR`.
+Première ligne = en-têtes. Colonnes lues (accents, casse et espaces ignorés) : `Matricule`, `Nom et Prénoms`, `Montant`, `SOLDE`, `CAR` (`TOTPAYE` n'est lu que si `Montant` est absent).
+**`Montant` = total déjà payé par l'étudiant** (c'est ce chiffre qui est comparé aux paliers). `SOLDE` = reste à payer pour l'année ; le prix annuel de l'étudiant vaut donc `Montant + SOLDE`. Sans colonne `SOLDE`, le prix annuel est inconnu et les seuils standards s'appliquent sans plafond.
 Le car est pris dans la colonne `CAR`, sinon dans le nom de la feuille ou du fichier (« CAR 5 »). Les colonnes `Modalités`, `Tranche…`, `Echéance…` sont affichées à l'étudiant. Les lignes « TOTAL » sont ignorées. Un matricule en double : première ligne conservée, doublon signalé. Réimporter met à jour nom, car et paiements sans toucher aux mots de passe, QR ni activations.
 
 ---
 
 ## Règles métier
 
-**Règle « à jour » : paliers selon la date** (réglable dans *Paramètres*). Le « Montant » du fichier Excel est le total dû pour l'année ; le total payé (`TOTPAYE`) est comparé au cumul exigé à la date du scan :
+**Règle « à jour » : paliers selon la date** (réglable dans *Paramètres*). Le « Montant » du fichier Excel est le total déjà payé ; il est comparé au cumul exigé à la date du scan :
 
 | Période | Cumul payé exigé pour être à jour |
 |---|---|
@@ -74,7 +75,9 @@ Le car est pris dans la colonne `CAR`, sinon dans le nom de la feuille ou du fic
 | du 10 décembre au 9 mars | **310 000 FCFA** |
 | du 10 mars à fin juin | **460 000 FCFA** (l'étudiant est alors **soldé**) |
 
-- Un car moins cher que 460 000 FCFA par an : l'exigence est **plafonnée au « Montant » du fichier** (ex. montant 300 000 → jamais plus de 300 000 exigés). Option *paliers proportionnels* dans Paramètres (ex. montant 230 000 → 80 000, 155 000, 230 000).
+« Soldé » n'apparaît que du 10 mars à fin juin : avant, un étudiant qui a déjà tout payé est « À jour ».
+
+- Un car moins cher que 460 000 FCFA par an : l'exigence est **plafonnée à son prix annuel** (`Montant + SOLDE`, ex. prix 300 000 → jamais plus de 300 000 exigés ; il est soldé dès qu'il a tout payé). Option *paliers proportionnels* dans Paramètres (ex. prix annuel 230 000 → 80 000, 155 000, 230 000).
 - Les montants et les trois dates sont modifiables dans *Paramètres* (l'année suivante, il suffit de changer les chiffres). Les modes « pourcentage du dû » et « montant fixe » existent aussi.
 - La date utilisée est celle **du scan** (un scan fait hors-ligne est jugé à son heure réelle). Les scans, filtres, statistiques et l'espace étudiant appliquent exactement la même règle ; l'étudiant voit le minimum exigé aujourd'hui et le prochain palier.
 
